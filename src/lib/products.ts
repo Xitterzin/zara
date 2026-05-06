@@ -1,0 +1,58 @@
+import { Product } from "@/types";
+
+export const mockProducts: Product[] = [
+  {
+    id: "1",
+    name: "Vestido Serenata",
+    description: "Vestido midi em crepe italiano com decote V elegante e caimento impecável. Ideal para ocasiões especiais.",
+    price: 890,
+    image_url: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&q=80",
+    category: "Vestidos",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    name: "Blazer Autoral",
+    description: "Blazer estruturado em lã premium com lapela refinada. Peça versátil para look executivo ou casual chic.",
+    price: 1240,
+    image_url: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&q=80",
+    category: "Blazers",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "3",
+    name: "Conjunto Palazzo",
+    description: "Conjunto calça palazzo e blusa em seda natural. Silhueta fluida com toque de sofisticação contemporânea.",
+    price: 1560,
+    image_url: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&q=80",
+    category: "Conjuntos",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "4",
+    name: "Saia Estruturada",
+    description: "Saia midi com pregas frontais e cós alto. Acabamento artesanal em tecido jacquard exclusivo.",
+    price: 680,
+    image_url: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=600&q=80",
+    category: "Saias",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "5",
+    name: "Trench Coat Clássico",
+    description: "Trench coat em gabardine de algodão com forro em seda. Corte sob medida para silhueta perfeita.",
+    price: 2100,
+    image_url: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=600&q=80",
+    category: "Casacos",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "6",
+    name: "Blusa Romantica",
+    description: "Blusa com mangas amplas em chiffon acetinado. Detalhes de laço no decote para um toque editorial.",
+    price: 420,
+    image_url: "https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=600&q=80",
+    category: "Blusas",
+    created_at: new Date().toISOString(),
+  },
+];

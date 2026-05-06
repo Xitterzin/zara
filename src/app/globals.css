@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --wine: #6a0d1b;
+  --wine-light: #8b1a2e;
+  --wine-dark: #4a0812;
+  --beige: #ede5d8;
+  --beige-light: #f7f3ee;
+  --beige-dark: #d4c9b8;
+  --gold: #c9a84c;
+  --gold-light: #dfc07a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--beige-light);
+  color: #1a1a1a;
+  font-family: 'Jost', sans-serif;
+  font-weight: 300;
+}
+
+.font-display {
+  font-family: 'Cormorant Garamond', serif !important;
+}
+
+/* Typography utilities */
+.font-display {
+  font-family: var(--font-cormorant), serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--beige-light);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--wine);
+  border-radius: 2px;
+}
+
+/* Gold shimmer text */
+.text-gold-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--gold-dark) 0%,
+    var(--gold) 40%,
+    var(--gold-light) 50%,
+    var(--gold) 60%,
+    var(--gold-dark) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Input styles */
+.input-unica {
+  @apply w-full bg-beige-light border border-beige-dark rounded px-4 py-3 font-body text-sm text-gray-800 outline-none transition-all;
+}
+.input-unica:focus {
+  border-color: var(--wine);
+  box-shadow: 0 0 0 2px rgba(106, 13, 27, 0.08);
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-wine text-beige-light font-body font-medium tracking-widest uppercase text-xs px-8 py-4 transition-all duration-300;
+}
+.btn-primary:hover {
+  background-color: var(--wine-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(106, 13, 27, 0.25);
+}
+
+.btn-outline {
+  @apply border border-wine text-wine font-body font-medium tracking-widest uppercase text-xs px-8 py-4 transition-all duration-300;
+}
+.btn-outline:hover {
+  background-color: var(--wine);
+  color: var(--beige-light);
+}
+
+/* Loading dots */
+.loading-dots span {
+  animation: loadingDots 1.4s ease-in-out infinite;
+  display: inline-block;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes loadingDots {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* Divider ornamental */
+.ornament-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ornament-divider::before,
+.ornament-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--gold);
+  opacity: 0.4;
+}
+
+/* Card hover */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Status badge */
+.status-badge {
+  @apply inline-flex items-center gap-1.5 text-xs font-body font-medium tracking-wide px-3 py-1 rounded-full;
+}
+
+@keyframes shimmer {
+  to { background-position: 200% center; }
+}
+
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+.animate-fade-up {
+  opacity: 0;
+  animation: fadeUp 0.6s ease forwards;
+}
