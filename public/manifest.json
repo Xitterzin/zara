@@ -1,0 +1,24 @@
+{
+  "name": "Única — Moda Sob Medida",
+  "short_name": "Única",
+  "description": "Roupas criadas exclusivamente para o seu corpo.",
+  "start_url": "/catalog",
+  "display": "standalone",
+  "background_color": "#F7F3EE",
+  "theme_color": "#6A0D1B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
