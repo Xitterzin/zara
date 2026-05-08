@@ -1,7 +1,7 @@
 <svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="1280" height="720" fill="#FAFAF8"/>
   <path d="M300 252C330 286 407 251 427 206C445 166 396 149 385 191C369 254 428 326 463 366" stroke="#111111" stroke-width="2.4" stroke-linecap="round"/>
-  <path d="M408 288V385C408 430 440 449 477 449C515 449 545 430 545 385V288H498V386C498 414 489 432 466 432C443 432 434 414 434 386V288H408Z" fill="#111111"/>
-  <text x="456" y="424" fill="#222222" font-family="Georgia, 'Times New Roman', serif" font-size="152" font-weight="700" letter-spacing="-9">NIQUE</text>
+  <text x="333" y="425" fill="#111111" font-family="Georgia, 'Times New Roman', serif" font-size="192" font-weight="700" letter-spacing="-13">U</text>
+  <text x="454" y="425" fill="#222222" font-family="Georgia, 'Times New Roman', serif" font-size="152" font-weight="700" letter-spacing="-4">NIQUE</text>
   <text x="472" y="506" fill="#222222" font-family="Georgia, 'Times New Roman', serif" font-size="30" letter-spacing="-1">UMA EXTENSÃO DA ZARA</text>
 </svg>
