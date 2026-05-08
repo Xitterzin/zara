@@ -65,7 +65,7 @@ export default function AuthPage() {
           <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
             <BrandLogo
               variant="horizontal"
-              className="h-auto w-72 invert"
+              className="h-auto w-72"
               priority
             />
             <motion.div

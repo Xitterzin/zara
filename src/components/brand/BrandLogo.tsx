@@ -36,7 +36,7 @@ function LogoImage({
 
   return (
     <Image
-      src="/brand/unique-logo-horizontal.jpeg"
+      src="/brand/unique-logo-dark.png"
       alt="UNIQUE - Uma extensão da Zara"
       width={1280}
       height={720}

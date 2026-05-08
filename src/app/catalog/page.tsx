@@ -21,7 +21,7 @@ export default async function CatalogPage() {
           <div className="mb-10 w-full max-w-[420px] sm:max-w-[520px]">
             <BrandLogo
               variant="horizontal"
-              className="h-auto w-full mix-blend-multiply"
+              className="h-auto w-full"
               priority
             />
           </div>
