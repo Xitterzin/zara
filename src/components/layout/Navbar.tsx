@@ -1,13 +1,21 @@
 "use client";
+
+import BrandLogo from "@/components/brand/BrandLogo";
+import { createClient } from "@/lib/supabase/client";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const links = [
+    { href: "/catalog", label: "Catálogo" },
+    { href: "/dashboard", label: "Seus pedidos" },
+  ];
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -16,75 +24,85 @@ export default function Navbar() {
     router.refresh();
   };
 
-  const links = [
-    { href: "/catalog", label: "Catálogo" },
-    { href: "/dashboard", label: "Meus Pedidos" },
-  ];
-
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-beige-light/95 backdrop-blur-sm border-b border-beige-dark">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-        {/* Logo */}
-        <Link href="/catalog" className="font-display text-2xl font-light tracking-[0.2em] text-wine">
-          Ú<span className="text-gold">N</span>ICA
-        </Link>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-ink/10 bg-paper/88 backdrop-blur-xl">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
+        <BrandLogo
+          href="/catalog"
+          variant="monogram"
+          className="h-11 w-11 object-contain"
+          priority
+        />
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8">
-          {links.map((l) => (
+        <nav className="hidden items-center gap-10 md:flex">
+          {links.map((link) => (
             <Link
-              key={l.href}
-              href={l.href}
-              className={`font-body text-xs tracking-widest uppercase transition-colors ${
-                pathname.startsWith(l.href)
-                  ? "text-wine font-medium"
-                  : "text-gray-500 hover:text-wine"
+              key={link.href}
+              href={link.href}
+              className={`text-[11px] uppercase tracking-[0.28em] transition ${
+                pathname.startsWith(link.href)
+                  ? "text-ink"
+                  : "text-ink/45 hover:text-ink"
               }`}
             >
-              {l.label}
+              {link.label}
             </Link>
           ))}
           <button
             onClick={handleLogout}
-            className="font-body text-xs tracking-widest uppercase text-gray-400 hover:text-wine transition-colors"
+            className="text-[11px] uppercase tracking-[0.28em] text-ink/45 transition hover:text-ink"
           >
             Sair
           </button>
         </nav>
 
-        {/* Mobile hamburger */}
         <button
-          className="md:hidden p-2"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Menu"
+          className="relative h-10 w-10 md:hidden"
+          onClick={() => setMenuOpen((value) => !value)}
+          aria-label="Abrir menu"
         >
-          <span className={`block w-5 h-px bg-wine transition-all duration-300 ${menuOpen ? "rotate-45 translate-y-1" : ""}`} />
-          <span className={`block w-5 h-px bg-wine mt-1.5 transition-all duration-300 ${menuOpen ? "opacity-0" : ""}`} />
-          <span className={`block w-5 h-px bg-wine mt-1.5 transition-all duration-300 ${menuOpen ? "-rotate-45 -translate-y-2.5" : ""}`} />
+          <span
+            className={`absolute left-2 top-4 h-px w-6 bg-ink transition ${
+              menuOpen ? "rotate-45" : ""
+            }`}
+          />
+          <span
+            className={`absolute left-2 top-6 h-px w-6 bg-ink transition ${
+              menuOpen ? "-rotate-45 -translate-y-2" : ""
+            }`}
+          />
         </button>
       </div>
 
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-beige-light border-t border-beige-dark py-4 px-6 flex flex-col gap-4">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => setMenuOpen(false)}
-              className="font-body text-xs tracking-widest uppercase text-gray-600 hover:text-wine"
-            >
-              {l.label}
-            </Link>
-          ))}
-          <button
-            onClick={handleLogout}
-            className="font-body text-xs tracking-widest uppercase text-gray-400 hover:text-wine text-left"
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="border-t border-ink/10 bg-paper px-6 py-8 md:hidden"
           >
-            Sair
-          </button>
-        </div>
-      )}
+            <div className="flex flex-col gap-6">
+              {links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="font-display text-3xl text-ink"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <button
+                onClick={handleLogout}
+                className="mt-4 text-left text-[11px] uppercase tracking-[0.3em] text-ink/55"
+              >
+                Encerrar sessão
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

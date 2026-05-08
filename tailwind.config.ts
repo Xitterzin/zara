@@ -9,25 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        wine: {
-          DEFAULT: "#6A0D1B",
-          light: "#8B1A2E",
-          dark: "#4A0812",
-        },
-        beige: {
-          DEFAULT: "#EDE5D8",
-          light: "#F7F3EE",
-          dark: "#D4C9B8",
-        },
-        gold: {
-          DEFAULT: "#C9A84C",
-          light: "#DFC07A",
-          dark: "#A8872E",
-        },
+        ink: "#111111",
+        paper: "#FAFAF8",
+        porcelain: "#F2F1EE",
+        graphite: "#6F6F6F",
+        smoke: "#D8D8D4",
       },
       fontFamily: {
-        display: ["Cormorant Garamond", "serif"],
-        body: ["Jost", "sans-serif"],
+        display: ["var(--font-display)", "Georgia", "serif"],
+        body: ["var(--font-sans)", "Arial", "sans-serif"],
       },
       animation: {
         "fade-up": "fadeUp 0.6s ease forwards",

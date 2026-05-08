@@ -1,33 +1,41 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Jost } from "next/font/google";
 import "./globals.css";
 
+const display = Cormorant_Garamond({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const sans = Jost({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["300", "400", "500", "600"],
+});
+
 export const metadata: Metadata = {
-  title: "Única — Moda Sob Medida",
-  description: "Roupas criadas exclusivamente para o seu corpo. Cada peça, única.",
+  title: "UNIQUE - Uma extensão da Zara",
+  description:
+    "Protótipo acadêmico de moda sob medida com catálogo, medidas, escaneamento simulado e pedidos.",
+  icons: {
+    icon: "/brand/unique-monogram.svg",
+    apple: "/brand/unique-monogram.svg",
+  },
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#111111",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Jost:wght@200;300;400;500;600&display=swap"
-          rel="stylesheet"
-        />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#6A0D1B" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Única" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-      </head>
-      <body className="antialiased">
-        {children}
-      </body>
+    <html lang="pt-BR" className={`${display.variable} ${sans.variable}`}>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

@@ -1,11 +1,11 @@
 {
-  "name": "Única — Moda Sob Medida",
-  "short_name": "Única",
-  "description": "Roupas criadas exclusivamente para o seu corpo.",
+  "name": "UNIQUE - Uma extensão da Zara",
+  "short_name": "UNIQUE",
+  "description": "Roupas criadas sob medida em uma experiência editorial.",
   "start_url": "/catalog",
   "display": "standalone",
-  "background_color": "#F7F3EE",
-  "theme_color": "#6A0D1B",
+  "background_color": "#FAFAF8",
+  "theme_color": "#111111",
   "orientation": "portrait",
   "icons": [
     {

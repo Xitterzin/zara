@@ -1,18 +1,23 @@
 "use client";
-import { useState, useRef, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
+
+import BrandLogo from "@/components/brand/BrandLogo";
+import EditorialButton from "@/components/ui/EditorialButton";
 import { mockProducts } from "@/lib/products";
-import { Measurements } from "@/types";
+import { createClient } from "@/lib/supabase/client";
+import { uploadBodyPhoto, validateBodyPhoto } from "@/lib/data/uploads";
+import { Measurements, Product } from "@/types";
+import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 type Step = "measures" | "photo" | "analyzing" | "summary";
 
 const ANALYSIS_STEPS = [
-  "Analisando proporções…",
-  "Calculando medidas…",
-  "Gerando modelo corporal…",
-  "Finalizando ajustes…",
+  "Analisando proporções...",
+  "Calculando medidas...",
+  "Gerando modelo corporal...",
+  "Finalizando ajustes...",
 ];
 
 const MEASURE_FIELDS: { key: keyof Measurements; label: string; hint: string }[] = [
@@ -27,16 +32,19 @@ const MEASURE_FIELDS: { key: keyof Measurements; label: string; hint: string }[]
 
 function ScanContent() {
   const searchParams = useSearchParams();
-  const productId = searchParams.get("product") ?? "1";
-  const product = mockProducts.find((p) => p.id === productId) ?? mockProducts[0];
-
+  const productId = searchParams.get("product") ?? mockProducts[0].id;
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [product, setProduct] = useState<Product>(
+    mockProducts.find((item) => item.id === productId) ?? mockProducts[0]
+  );
   const [step, setStep] = useState<Step>("measures");
   const [measures, setMeasures] = useState<Partial<Measurements>>({});
   const [frontPhoto, setFrontPhoto] = useState<File | null>(null);
   const [backPhoto, setBackPhoto] = useState<File | null>(null);
-  const [frontPreview, setFrontPreview] = useState<string>("");
-  const [backPreview, setBackPreview] = useState<string>("");
+  const [frontPreview, setFrontPreview] = useState("");
+  const [backPreview, setBackPreview] = useState("");
   const [analysisStep, setAnalysisStep] = useState(0);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -45,430 +53,420 @@ function ScanContent() {
   const frontRef = useRef<HTMLInputElement>(null);
   const backRef = useRef<HTMLInputElement>(null);
 
-  // Simulate analysis
+  useEffect(() => {
+    let active = true;
+
+    supabase
+      .from("products")
+      .select("*")
+      .eq("id", productId)
+      .single()
+      .then(({ data }) => {
+        if (active && data) {
+          setProduct({ ...data, price: Number(data.price) } as Product);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [productId, supabase]);
+
   useEffect(() => {
     if (step !== "analyzing") return;
-    let idx = 0;
-    let progress = 0;
 
+    let progress = 0;
     const interval = setInterval(() => {
       progress += 2;
       setAnalysisProgress(Math.min(progress, 100));
-
-      if (progress % 25 === 0 && idx < ANALYSIS_STEPS.length - 1) {
-        idx++;
-        setAnalysisStep(idx);
-      }
+      setAnalysisStep(Math.min(Math.floor(progress / 26), ANALYSIS_STEPS.length - 1));
 
       if (progress >= 100) {
         clearInterval(interval);
-        setTimeout(() => setStep("summary"), 500);
+        setTimeout(() => setStep("summary"), 600);
       }
-    }, 60);
+    }, 58);
 
     return () => clearInterval(interval);
   }, [step]);
 
-  const handleMeasureChange = (key: keyof Measurements, val: string) => {
-    setMeasures((prev) => ({ ...prev, [key]: parseFloat(val) || undefined }));
+  useEffect(() => {
+    return () => {
+      if (frontPreview) URL.revokeObjectURL(frontPreview);
+      if (backPreview) URL.revokeObjectURL(backPreview);
+    };
+  }, [frontPreview, backPreview]);
+
+  const handleMeasureChange = (key: keyof Measurements, value: string) => {
+    setMeasures((current) => ({
+      ...current,
+      [key]: value ? Number(value) : undefined,
+    }));
   };
 
   const handlePhoto = (side: "front" | "back", file: File) => {
-    const url = URL.createObjectURL(file);
+    const validation = validateBodyPhoto(file);
+    if (validation) {
+      setError(validation);
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setError("");
+
     if (side === "front") {
+      if (frontPreview) URL.revokeObjectURL(frontPreview);
       setFrontPhoto(file);
-      setFrontPreview(url);
+      setFrontPreview(preview);
     } else {
+      if (backPreview) URL.revokeObjectURL(backPreview);
       setBackPhoto(file);
-      setBackPreview(url);
+      setBackPreview(preview);
     }
   };
 
-  const handleMeasuresNext = (e: React.FormEvent) => {
-    e.preventDefault();
-    const allFilled = MEASURE_FIELDS.every((f) => measures[f.key] !== undefined);
-    if (!allFilled) {
-      setError("Preencha todas as medidas antes de continuar.");
-      return;
-    }
-    setError("");
-    setStep("photo");
-  };
+  const completeMeasures = MEASURE_FIELDS.every(
+    (field) => measures[field.key] !== undefined
+  );
 
-  const handlePhotoNext = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!frontPhoto || !backPhoto) {
-      setError("Envie as duas fotos para continuar.");
-      return;
-    }
-    setError("");
-    setStep("analyzing");
-  };
+  const finalMeasures = measures as Measurements;
 
-  const handleFinalize = async () => {
+  const finalize = async () => {
     setSubmitting(true);
     setError("");
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/auth"); return; }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.push("/auth");
+      return;
+    }
 
     try {
-      let frontUrl: string | null = null;
-      let backUrl: string | null = null;
+      if (!frontPhoto || !backPhoto) throw new Error("Envie as duas fotos.");
 
-      // Upload photos
-      if (frontPhoto) {
-        const ext = frontPhoto.name.split(".").pop();
-        const path = `${user.id}/${Date.now()}_front.${ext}`;
-        const { data, error: upErr } = await supabase.storage
-          .from("body-photos")
-          .upload(path, frontPhoto, { upsert: true });
-        if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("body-photos").getPublicUrl(data.path);
-        frontUrl = urlData.publicUrl;
-      }
+      const [frontUrl, backUrl] = await Promise.all([
+        uploadBodyPhoto(user.id, frontPhoto, "front"),
+        uploadBodyPhoto(user.id, backPhoto, "back"),
+      ]);
 
-      if (backPhoto) {
-        const ext = backPhoto.name.split(".").pop();
-        const path = `${user.id}/${Date.now()}_back.${ext}`;
-        const { data, error: upErr } = await supabase.storage
-          .from("body-photos")
-          .upload(path, backPhoto, { upsert: true });
-        if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("body-photos").getPublicUrl(data.path);
-        backUrl = urlData.publicUrl;
-      }
-
-      // Insert order
-      const { error: orderErr } = await supabase.from("orders").insert({
+      const { error: orderError } = await supabase.from("orders").insert({
         user_id: user.id,
-        product_id: productId,
-        measurements: measures,
+        product_id: product.id,
+        measurements: finalMeasures,
         front_image_url: frontUrl,
         back_image_url: backUrl,
         status: "Em análise",
       });
-      if (orderErr) throw orderErr;
 
+      if (orderError) throw orderError;
       router.push("/dashboard?success=1");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao finalizar pedido.";
-      setError(msg);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao finalizar pedido.");
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 py-12">
-      {/* Product mini header */}
-      <div className="flex items-center gap-3 mb-10 p-4 bg-white border-l-2 border-wine">
-        <div className="relative w-12 h-16 overflow-hidden shrink-0">
-          <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="48px" />
-        </div>
+    <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+      <div className="mb-10 grid gap-5 border-b border-ink/10 pb-8 md:grid-cols-[1fr_auto] md:items-end">
         <div>
-          <p className="font-body text-[10px] tracking-widest uppercase text-gray-400">Peça selecionada</p>
-          <p className="font-display text-xl font-light text-gray-800">{product.name}</p>
-          <p className="font-body text-xs text-wine">R$ {product.price.toLocaleString("pt-BR")}</p>
+          <p className="editorial-kicker">Escaneamento simulado</p>
+          <h1 className="mt-3 font-display text-5xl font-light leading-none sm:text-7xl">
+            Medidas sob medida.
+          </h1>
+        </div>
+        <div className="flex items-center gap-4 border border-ink/10 bg-white/70 p-3">
+          <div className="relative h-20 w-16 overflow-hidden bg-porcelain">
+            {product.image_url && (
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                fill
+                className="object-cover grayscale"
+                sizes="64px"
+              />
+            )}
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.26em] text-ink/42">
+              Peça selecionada
+            </p>
+            <p className="font-display text-2xl">{product.name}</p>
+            <p className="text-xs text-ink/55">
+              R$ {Number(product.price).toLocaleString("pt-BR")}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Step indicators */}
-      <div className="flex items-center gap-0 mb-10">
+      <div className="mb-10 grid grid-cols-4 gap-2">
         {[
-          { id: "measures", label: "Medidas" },
-          { id: "photo", label: "Fotos" },
-          { id: "analyzing", label: "Análise" },
-          { id: "summary", label: "Resumo" },
-        ].map((s, i, arr) => {
-          const stepOrder = ["measures", "photo", "analyzing", "summary"];
-          const current = stepOrder.indexOf(step);
-          const idx = stepOrder.indexOf(s.id);
-          const done = idx < current;
-          const active = idx === current;
+          ["measures", "Medidas"],
+          ["photo", "Fotos"],
+          ["analyzing", "Análise"],
+          ["summary", "Resumo"],
+        ].map(([id, label], index) => {
+          const order = ["measures", "photo", "analyzing", "summary"];
+          const active = order.indexOf(step) >= index;
           return (
-            <div key={s.id} className="flex items-center flex-1">
-              <div className="flex flex-col items-center">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-body font-medium transition-colors ${
-                  done ? "bg-wine text-beige-light" : active ? "bg-wine text-beige-light" : "bg-beige-dark text-gray-400"
-                }`}>
-                  {done ? "✓" : i + 1}
-                </div>
-                <span className={`font-body text-[10px] tracking-widest uppercase mt-1 ${active ? "text-wine" : "text-gray-400"}`}>
-                  {s.label}
-                </span>
-              </div>
-              {i < arr.length - 1 && (
-                <div className={`flex-1 h-px mx-1 mb-4 transition-colors ${done ? "bg-wine" : "bg-beige-dark"}`} />
-              )}
+            <div key={id} className="border-t border-ink/10 pt-3">
+              <span
+                className={`text-[9px] uppercase tracking-[0.24em] ${
+                  active ? "text-ink" : "text-ink/35"
+                }`}
+              >
+                0{index + 1} {label}
+              </span>
             </div>
           );
         })}
       </div>
 
-      {/* STEP 1 — MEASURES */}
-      {step === "measures" && (
-        <form onSubmit={handleMeasuresNext} className="animate-fade-up space-y-5">
-          <h2 className="font-display text-4xl font-light text-gray-800">Suas medidas</h2>
-          <p className="font-body text-sm text-gray-500 leading-relaxed">
-            Informe suas medidas em centímetros. Use uma fita métrica e peça ajuda se necessário.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            {MEASURE_FIELDS.map((f) => (
-              <div key={f.key}>
-                <label className="font-body text-[10px] tracking-widest uppercase text-gray-500 block mb-1">
-                  {f.label} <span className="text-gray-300 normal-case tracking-normal">(cm)</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  className="input-unica"
-                  placeholder="Ex: 88"
-                  value={measures[f.key] ?? ""}
-                  onChange={(e) => handleMeasureChange(f.key, e.target.value)}
-                  required
-                />
-                <p className="font-body text-[10px] text-gray-400 mt-0.5">{f.hint}</p>
-              </div>
-            ))}
-          </div>
-
-          {error && <p className="font-body text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
-          <button type="submit" className="btn-primary w-full mt-4">
-            Próximo — Fotos
-          </button>
-        </form>
-      )}
-
-      {/* STEP 2 — PHOTOS */}
-      {step === "photo" && (
-        <form onSubmit={handlePhotoNext} className="animate-fade-up space-y-6">
-          <h2 className="font-display text-4xl font-light text-gray-800">Escaneamento</h2>
-          <p className="font-body text-sm text-gray-500 leading-relaxed">
-            Envie uma foto frontal e uma traseira. Vista roupas justas para melhor precisão.
-          </p>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Front */}
-            <div>
-              <p className="font-body text-[10px] tracking-widest uppercase text-gray-500 mb-2">Frente</p>
-              <button
-                type="button"
-                onClick={() => frontRef.current?.click()}
-                className={`w-full aspect-[3/4] border-2 border-dashed flex flex-col items-center justify-center transition-colors overflow-hidden relative ${
-                  frontPreview ? "border-wine" : "border-beige-dark hover:border-wine"
-                }`}
-              >
-                {frontPreview ? (
-                  <Image src={frontPreview} alt="Frente" fill className="object-cover" sizes="200px" />
-                ) : (
-                  <>
-                    <span className="text-3xl text-gray-300 mb-2">↑</span>
-                    <span className="font-body text-xs text-gray-400">Selecionar foto</span>
-                  </>
-                )}
-              </button>
-              <input
-                ref={frontRef}
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && handlePhoto("front", e.target.files[0])}
-              />
-            </div>
-
-            {/* Back */}
-            <div>
-              <p className="font-body text-[10px] tracking-widest uppercase text-gray-500 mb-2">Costas</p>
-              <button
-                type="button"
-                onClick={() => backRef.current?.click()}
-                className={`w-full aspect-[3/4] border-2 border-dashed flex flex-col items-center justify-center transition-colors overflow-hidden relative ${
-                  backPreview ? "border-wine" : "border-beige-dark hover:border-wine"
-                }`}
-              >
-                {backPreview ? (
-                  <Image src={backPreview} alt="Costas" fill className="object-cover" sizes="200px" />
-                ) : (
-                  <>
-                    <span className="text-3xl text-gray-300 mb-2">↑</span>
-                    <span className="font-body text-xs text-gray-400">Selecionar foto</span>
-                  </>
-                )}
-              </button>
-              <input
-                ref={backRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && handlePhoto("back", e.target.files[0])}
-              />
-            </div>
-          </div>
-
-          <div className="bg-beige p-4 text-center">
-            <p className="font-body text-xs text-gray-500 leading-relaxed">
-              <span className="text-wine font-medium">Dica:</span> Fique em frente a uma parede lisa com boa iluminação.
-              Use roupas justas ou de academia para melhor resultado.
+      <AnimatePresence mode="wait">
+        {step === "measures" && (
+          <motion.form
+            key="measures"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -18 }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!completeMeasures) {
+                setError("Preencha todas as medidas antes de continuar.");
+                return;
+              }
+              setError("");
+              setStep("photo");
+            }}
+            className="mx-auto max-w-3xl"
+          >
+            <h2 className="font-display text-5xl font-light">Suas proporções</h2>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-ink/55">
+              Informe as medidas em centímetros. A experiência é simulada, mas o
+              pedido fictício registra os dados para acompanhamento.
             </p>
-          </div>
-
-          {error && <p className="font-body text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
-          <div className="flex gap-3">
-            <button type="button" onClick={() => setStep("measures")} className="btn-outline flex-1">
-              Voltar
-            </button>
-            <button type="submit" className="btn-primary flex-1">
-              Analisar
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* STEP 3 — ANALYZING */}
-      {step === "analyzing" && (
-        <div className="animate-fade-up text-center py-16">
-          {/* Animated body silhouette */}
-          <div className="relative w-24 h-36 mx-auto mb-10">
-            <div className="absolute inset-0 border-2 border-wine/20 rounded-full animate-pulse2" />
-            <div className="absolute inset-3 border border-wine/30 rounded-full animate-pulse2" style={{ animationDelay: "0.3s" }} />
-            <div className="absolute inset-6 border border-gold/30 rounded-full animate-pulse2" style={{ animationDelay: "0.6s" }} />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-3 h-3 rounded-full bg-wine animate-pulse" />
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {MEASURE_FIELDS.map((field) => (
+                <label key={field.key} className="block">
+                  <span className="mb-2 block text-[10px] uppercase tracking-[0.26em] text-ink/45">
+                    {field.label}
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.1"
+                    className="input-unique"
+                    value={measures[field.key] ?? ""}
+                    onChange={(e) => handleMeasureChange(field.key, e.target.value)}
+                    required
+                  />
+                  <span className="mt-1 block text-[11px] text-ink/42">
+                    {field.hint}
+                  </span>
+                </label>
+              ))}
             </div>
-            {/* Scanning line */}
-            <div
-              className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold to-transparent"
-              style={{
-                top: `${analysisProgress}%`,
-                transition: "top 0.1s linear",
-              }}
-            />
-          </div>
+            {error && <p className="mt-5 text-sm text-ink">{error}</p>}
+            <EditorialButton type="submit" className="mt-8 w-full sm:w-auto">
+              Próximo: fotografias
+            </EditorialButton>
+          </motion.form>
+        )}
 
-          <h2 className="font-display text-3xl font-light text-gray-800 mb-2">
-            {ANALYSIS_STEPS[analysisStep]}
-          </h2>
-          <p className="font-body text-xs text-gray-400 mb-8">
-            Processando dados biométricos com precisão
-          </p>
+        {step === "photo" && (
+          <motion.div
+            key="photo"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -18 }}
+            className="mx-auto max-w-4xl"
+          >
+            <h2 className="font-display text-5xl font-light">Registro visual</h2>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-ink/55">
+              Envie uma fotografia frontal e uma traseira. Use boa iluminação e
+              fundo limpo para reforçar a simulação.
+            </p>
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:gap-6">
+              {[
+                { side: "front" as const, label: "Frente", preview: frontPreview, ref: frontRef },
+                { side: "back" as const, label: "Costas", preview: backPreview, ref: backRef },
+              ].map(({ side, label, preview, ref }) => (
+                <div key={side}>
+                  <button
+                    type="button"
+                    onClick={() => ref.current?.click()}
+                    className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden border border-dashed border-ink/25 bg-white/60 transition hover:border-ink"
+                  >
+                    {preview ? (
+                      <Image
+                        src={preview}
+                        alt={label}
+                        fill
+                        className="object-cover grayscale"
+                        sizes="(max-width: 768px) 50vw, 300px"
+                      />
+                    ) : (
+                      <span className="px-4 text-center text-[10px] uppercase tracking-[0.28em] text-ink/45">
+                        Selecionar {label}
+                      </span>
+                    )}
+                  </button>
+                  <input
+                    ref={ref}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && handlePhoto(side, e.target.files[0])
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            {error && <p className="mt-5 text-sm text-ink">{error}</p>}
+            <div className="mt-8 flex gap-3">
+              <EditorialButton variant="outline" onClick={() => setStep("measures")}>
+                Voltar
+              </EditorialButton>
+              <EditorialButton
+                onClick={() => {
+                  if (!frontPhoto || !backPhoto) {
+                    setError("Envie as duas fotos para continuar.");
+                    return;
+                  }
+                  setError("");
+                  setStep("analyzing");
+                }}
+              >
+                Analisar
+              </EditorialButton>
+            </div>
+          </motion.div>
+        )}
 
-          {/* Progress bar */}
-          <div className="max-w-xs mx-auto">
-            <div className="h-1 bg-beige-dark rounded-full overflow-hidden">
+        {step === "analyzing" && (
+          <motion.div
+            key="analyzing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="mx-auto max-w-2xl py-12 text-center"
+          >
+            <BrandLogo variant="monogram" className="mx-auto h-24 w-24" />
+            <div className="relative mx-auto mt-10 h-72 max-w-sm overflow-hidden border border-ink/10 bg-white/55">
+              <div className="absolute inset-x-8 top-10 bottom-10 rounded-full border border-ink/20" />
+              <div className="scan-line absolute left-0 right-0 top-0 h-px bg-ink" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="font-display text-7xl text-ink/10">UNIQUE</span>
+              </div>
+            </div>
+            <h2 className="mt-8 font-display text-4xl font-light">
+              {ANALYSIS_STEPS[analysisStep]}
+            </h2>
+            <div className="mx-auto mt-6 h-px max-w-sm bg-ink/10">
               <div
-                className="h-full bg-gradient-to-r from-wine to-gold transition-all duration-100"
+                className="h-px bg-ink transition-all"
                 style={{ width: `${analysisProgress}%` }}
               />
             </div>
-            <p className="font-body text-xs text-gray-400 mt-2">{Math.round(analysisProgress)}%</p>
-          </div>
-
-          {/* Steps list */}
-          <div className="mt-8 space-y-2 max-w-xs mx-auto">
-            {ANALYSIS_STEPS.map((s, i) => (
-              <div key={s} className={`flex items-center gap-2 font-body text-xs transition-colors ${
-                i < analysisStep ? "text-wine" : i === analysisStep ? "text-gray-800 font-medium" : "text-gray-300"
-              }`}>
-                <span>{i < analysisStep ? "✓" : i === analysisStep ? "◉" : "○"}</span>
-                <span>{s}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* STEP 4 — SUMMARY */}
-      {step === "summary" && (
-        <div className="animate-fade-up space-y-6">
-          <div className="text-center">
-            <span className="font-body text-xs tracking-widest uppercase text-gold">Análise concluída</span>
-            <h2 className="font-display text-4xl font-light text-gray-800 mt-1">Resumo do Pedido</h2>
-          </div>
-
-          {/* Photos */}
-          <div>
-            <p className="font-body text-[10px] tracking-widest uppercase text-gray-400 mb-3">Fotos enviadas</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Frente", src: frontPreview },
-                { label: "Costas", src: backPreview },
-              ].map(({ label, src }) => (
-                <div key={label}>
-                  <div className="relative aspect-[3/4] overflow-hidden bg-beige">
-                    {src && <Image src={src} alt={label} fill className="object-cover" sizes="200px" />}
-                  </div>
-                  <p className="font-body text-xs text-gray-400 text-center mt-1">{label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Measurements */}
-          <div className="bg-white p-5">
-            <p className="font-body text-[10px] tracking-widest uppercase text-gray-400 mb-4">
-              Medidas registradas
+            <p className="mt-3 text-[10px] uppercase tracking-[0.28em] text-ink/45">
+              {Math.round(analysisProgress)}%
             </p>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-              {MEASURE_FIELDS.map((f) => (
-                <div key={f.key} className="flex justify-between items-baseline border-b border-beige pb-2">
-                  <span className="font-body text-xs text-gray-500">{f.label}</span>
-                  <span className="font-display text-lg text-gray-800">
-                    {measures[f.key]} <span className="text-xs text-gray-400">cm</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          </motion.div>
+        )}
 
-          {/* Product */}
-          <div className="bg-beige p-4 flex items-center gap-3">
-            <div className="relative w-12 h-16 overflow-hidden shrink-0">
-              <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="48px" />
-            </div>
-            <div className="flex-1">
-              <p className="font-display text-lg font-light text-gray-800">{product.name}</p>
-              <p className="font-body text-sm text-wine">R$ {product.price.toLocaleString("pt-BR")}</p>
-            </div>
-            <span className="font-body text-[10px] tracking-widest uppercase bg-wine text-beige-light px-2 py-1">
-              Sob Medida
-            </span>
-          </div>
-
-          {error && <p className="font-body text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
-
-          <button
-            onClick={handleFinalize}
-            disabled={submitting}
-            className="btn-primary w-full disabled:opacity-60"
+        {step === "summary" && (
+          <motion.div
+            key="summary"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -18 }}
+            className="mx-auto max-w-5xl"
           >
-            {submitting ? (
-              <span className="loading-dots"><span>•</span><span>•</span><span>•</span></span>
-            ) : (
-              "Confirmar Pedido"
-            )}
-          </button>
-          <p className="font-body text-[11px] text-gray-400 text-center">
-            Ao confirmar, nossa equipe iniciará a análise do seu perfil corporal.
-          </p>
-        </div>
-      )}
+            <div className="text-center">
+              <p className="editorial-kicker">Análise concluída</p>
+              <h2 className="mt-3 font-display text-5xl font-light">
+                Resumo do pedido
+              </h2>
+            </div>
+
+            <div className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  ["Frente", frontPreview],
+                  ["Costas", backPreview],
+                ].map(([label, preview]) => (
+                  <div key={label}>
+                    <div className="relative aspect-[3/4] overflow-hidden bg-porcelain">
+                      {preview && (
+                        <Image
+                          src={preview}
+                          alt={label}
+                          fill
+                          className="object-cover grayscale"
+                          sizes="240px"
+                        />
+                      )}
+                    </div>
+                    <p className="mt-2 text-center text-[10px] uppercase tracking-[0.26em] text-ink/45">
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="editorial-card p-5 sm:p-8">
+                <p className="editorial-kicker">Medidas registradas</p>
+                <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
+                  {MEASURE_FIELDS.map((field) => (
+                    <div key={field.key} className="border-b border-ink/10 pb-3">
+                      <p className="text-[10px] uppercase tracking-[0.25em] text-ink/42">
+                        {field.label}
+                      </p>
+                      <p className="mt-1 font-display text-3xl">
+                        {finalMeasures[field.key]}{" "}
+                        <span className="text-sm text-ink/42">cm</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 border-t border-ink/10 pt-6">
+                  <p className="font-display text-3xl">{product.name}</p>
+                  <p className="mt-1 text-sm text-ink/55">
+                    R$ {Number(product.price).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+
+                {error && <p className="mt-5 text-sm text-ink">{error}</p>}
+                <EditorialButton
+                  onClick={finalize}
+                  disabled={submitting}
+                  className="mt-8 w-full"
+                >
+                  {submitting ? "Finalizando" : "Confirmar pedido"}
+                </EditorialButton>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function ScanPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <span className="loading-dots font-display text-2xl text-wine">
-          <span>•</span><span>•</span><span>•</span>
-        </span>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <BrandLogo variant="monogram" className="h-24 w-24" />
+        </div>
+      }
+    >
       <ScanContent />
     </Suspense>
   );

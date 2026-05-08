@@ -1,12 +1,13 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { Order } from "@/types";
-import Image from "next/image";
-import Link from "next/link";
+import EditorialButton from "@/components/ui/EditorialButton";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { mockProducts } from "@/lib/products";
+import { getUserOrders } from "@/lib/data/orders";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { ORDER_STATUSES, Order } from "@/types";
+import Image from "next/image";
 
-function formatDate(str: string) {
-  return new Date(str).toLocaleDateString("pt-BR", {
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -19,24 +20,16 @@ export default async function DashboardPage({
   searchParams: Promise<{ success?: string }>;
 }) {
   const { success } = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
   let orders: Order[] = [];
-  if (user) {
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    orders = (data ?? []) as Order[];
-  }
 
-  // Enrich with product data from mock (fallback if DB join not configured)
-  const enriched = orders.map((o) => ({
-    ...o,
-    products: mockProducts.find((p) => p.id === o.product_id),
-  }));
+  if (hasSupabaseEnv()) {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    orders = user ? await getUserOrders(user.id) : [];
+  }
 
   const measureLabels: Record<string, string> = {
     busto: "Busto",
@@ -49,160 +42,153 @@ export default async function DashboardPage({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-      {/* Header */}
-      <div className="mb-10 animate-fade-up">
+    <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+      <header className="cinema-in mb-10 border-b border-ink/10 pb-8">
         {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 font-body text-sm px-4 py-3 flex items-center gap-2">
-            <span>✓</span>
-            <span>Pedido realizado com sucesso! Nossa equipe entrará em contato em breve.</span>
+          <div className="mb-8 border border-ink/15 bg-white/70 px-4 py-3 text-sm text-ink">
+            Pedido realizado com sucesso. A equipe iniciará a análise do seu
+            perfil corporal.
           </div>
         )}
-        <p className="font-body text-xs tracking-[0.3em] uppercase text-gold mb-2">Área Pessoal</p>
-        <h1 className="font-display text-5xl font-light text-gray-800">Meus Pedidos</h1>
-        <div className="ornament-divider mt-3 max-w-[200px]">
-          <span className="font-display italic text-gray-400 text-sm">exclusivo para você</span>
-        </div>
-      </div>
+        <p className="editorial-kicker">Área pessoal</p>
+        <h1 className="mt-3 font-display text-6xl font-light leading-none sm:text-8xl">
+          Seus pedidos.
+        </h1>
+        <p className="mt-5 max-w-lg text-sm leading-7 text-ink/55">
+          Acompanhe o status das peças sob medida, as fotografias enviadas e o
+          conjunto de medidas registrado no escaneamento simulado.
+        </p>
+      </header>
 
-      {/* Empty state */}
-      {enriched.length === 0 && (
-        <div className="text-center py-20 animate-fade-up">
-          <div className="font-display text-8xl text-beige-dark mb-4">✦</div>
-          <h2 className="font-display text-3xl font-light text-gray-500 mb-2">
-            Nenhum pedido ainda
+      {orders.length === 0 ? (
+        <section className="cinema-in delay-1 mx-auto max-w-xl py-20 text-center">
+          <p className="font-display text-8xl text-ink/10">U</p>
+          <h2 className="mt-4 font-display text-4xl font-light">
+            Nenhum pedido registrado
           </h2>
-          <p className="font-body text-sm text-gray-400 mb-8">
-            Explore o catálogo e crie seu primeiro look sob medida.
+          <p className="mt-4 text-sm leading-7 text-ink/50">
+            O catálogo está pronto para iniciar sua primeira peça sob medida.
           </p>
-          <Link href="/catalog" className="btn-primary inline-block">
-            Ver Catálogo
-          </Link>
+          <EditorialButton href="/catalog" className="mt-8">
+            Ver catálogo
+          </EditorialButton>
+        </section>
+      ) : (
+        <div className="space-y-7">
+          {orders.map((order, orderIndex) => {
+            const currentStatus = ORDER_STATUSES.indexOf(order.status);
+
+            return (
+              <article
+                key={order.id}
+                className={`cinema-in delay-${Math.min(orderIndex + 1, 4)} editorial-card overflow-hidden`}
+              >
+                <div className="flex flex-col gap-4 border-b border-ink/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-ink/42">
+                      Pedido #{order.id.slice(0, 8).toUpperCase()}
+                    </p>
+                    <p className="mt-1 text-xs text-ink/50">
+                      {formatDate(order.created_at)}
+                    </p>
+                  </div>
+                  <StatusBadge status={order.status} />
+                </div>
+
+                <div className="grid gap-6 p-5 lg:grid-cols-[0.75fr_1.25fr]">
+                  <div className="flex gap-4">
+                    {order.products?.image_url && (
+                      <div className="relative h-32 w-24 shrink-0 overflow-hidden bg-porcelain">
+                        <Image
+                          src={order.products.image_url}
+                          alt={order.products.name}
+                          fill
+                          className="object-cover grayscale"
+                          sizes="96px"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.26em] text-ink/42">
+                        {order.products?.category ?? "Peça"}
+                      </p>
+                      <h3 className="mt-2 font-display text-4xl font-light leading-none">
+                        {order.products?.name ?? "Produto indisponível"}
+                      </h3>
+                      <p className="mt-3 font-display text-2xl">
+                        R${" "}
+                        {Number(order.products?.price ?? 0).toLocaleString(
+                          "pt-BR"
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                      {Object.entries(order.measurements ?? {}).map(([key, value]) => (
+                        <div key={key} className="border border-ink/10 bg-paper p-3 text-center">
+                          <p className="font-display text-2xl">{String(value)}</p>
+                          <p className="mt-1 text-[8px] uppercase tracking-[0.18em] text-ink/42">
+                            {measureLabels[key] ?? key}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 flex gap-3">
+                      {([
+                        ["Frente", order.front_image_url],
+                        ["Costas", order.back_image_url],
+                      ] as [string, string | null][]).map(([label, url]) =>
+                        url ? (
+                          <div key={label} className="relative h-24 w-20 overflow-hidden bg-porcelain">
+                            <Image
+                              src={url}
+                              alt={label}
+                              fill
+                              className="object-cover grayscale"
+                              sizes="80px"
+                            />
+                            <span className="absolute inset-x-0 bottom-0 bg-ink/70 py-1 text-center text-[8px] uppercase tracking-[0.16em] text-paper">
+                              {label}
+                            </span>
+                          </div>
+                        ) : null
+                      )}
+                    </div>
+
+                    <div className="mt-7 grid grid-cols-3 gap-2">
+                      {ORDER_STATUSES.map((status, index) => (
+                        <div key={status}>
+                          <div
+                            className={`h-px ${
+                              index <= currentStatus ? "bg-ink" : "bg-ink/12"
+                            }`}
+                          />
+                          <p
+                            className={`mt-2 text-[8px] uppercase tracking-[0.18em] ${
+                              index <= currentStatus ? "text-ink" : "text-ink/35"
+                            }`}
+                          >
+                            {status}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
-      {/* Orders list */}
-      <div className="space-y-6">
-        {enriched.map((order, i) => (
-          <div
-            key={order.id}
-            className={`bg-white animate-fade-up stagger-${Math.min(i + 1, 6)}`}
-          >
-            {/* Order header */}
-            <div className="flex items-center justify-between p-4 border-b border-beige">
-              <div>
-                <p className="font-body text-[10px] tracking-widest uppercase text-gray-400">
-                  Pedido #{order.id.slice(0, 8).toUpperCase()}
-                </p>
-                <p className="font-body text-xs text-gray-500 mt-0.5">
-                  {formatDate(order.created_at)}
-                </p>
-              </div>
-              <StatusBadge status={order.status} />
-            </div>
-
-            {/* Product info */}
-            <div className="p-4 flex gap-4">
-              {order.products && (
-                <div className="relative w-16 h-20 overflow-hidden shrink-0">
-                  <Image
-                    src={order.products.image_url}
-                    alt={order.products.name}
-                    fill
-                    className="object-cover"
-                    sizes="64px"
-                  />
-                </div>
-              )}
-              <div className="flex-1">
-                <h3 className="font-display text-2xl font-light text-gray-800">
-                  {order.products?.name ?? "Produto"}
-                </h3>
-                <p className="font-body text-xs text-gray-400 mt-0.5">
-                  {order.products?.category}
-                </p>
-                <p className="font-display text-lg text-wine mt-1">
-                  R$ {(order.products?.price ?? 0).toLocaleString("pt-BR")}
-                </p>
-              </div>
-            </div>
-
-            {/* Measurements grid */}
-            {order.measurements && (
-              <div className="px-4 pb-4">
-                <p className="font-body text-[10px] tracking-widest uppercase text-gray-400 mb-2">
-                  Medidas registradas
-                </p>
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                  {Object.entries(order.measurements).map(([k, v]) => (
-                    <div key={k} className="bg-beige-light text-center p-2">
-                      <p className="font-display text-lg text-gray-800">{v}</p>
-                      <p className="font-body text-[9px] text-gray-400 uppercase tracking-wide">
-                        {measureLabels[k] ?? k}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Photos */}
-            {(order.front_image_url || order.back_image_url) && (
-              <div className="px-4 pb-4 flex gap-3">
-                {[
-                  { label: "Frente", url: order.front_image_url },
-                  { label: "Costas", url: order.back_image_url },
-                ].map(({ label, url }) =>
-                  url ? (
-                    <div key={label} className="relative w-16 h-20 overflow-hidden">
-                      <Image src={url} alt={label} fill className="object-cover" sizes="64px" />
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white font-body text-[8px] text-center py-0.5">
-                        {label}
-                      </div>
-                    </div>
-                  ) : null
-                )}
-              </div>
-            )}
-
-            {/* Status timeline */}
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-0">
-                {(["Em análise", "Em produção", "Finalizado"] as const).map((s, i, arr) => {
-                  const statusOrder = ["Em análise", "Em produção", "Finalizado"];
-                  const current = statusOrder.indexOf(order.status);
-                  const done = i <= current;
-                  return (
-                    <div key={s} className="flex items-center flex-1">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-5 h-5 rounded-full text-[9px] flex items-center justify-center ${
-                          done ? "bg-wine text-beige-light" : "bg-beige-dark text-gray-400"
-                        }`}>
-                          {i < current ? "✓" : i + 1}
-                        </div>
-                        <span className={`font-body text-[9px] text-center mt-0.5 whitespace-nowrap ${
-                          done ? "text-wine" : "text-gray-300"
-                        }`}>
-                          {s}
-                        </span>
-                      </div>
-                      {i < arr.length - 1 && (
-                        <div className={`flex-1 h-px mx-1 mb-3 ${done && i < current ? "bg-wine" : "bg-beige-dark"}`} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {enriched.length > 0 && (
-        <div className="mt-8 text-center">
-          <Link href="/catalog" className="btn-outline inline-block">
-            Novo Pedido
-          </Link>
+      {orders.length > 0 && (
+        <div className="mt-10 text-center">
+          <EditorialButton href="/catalog" variant="outline">
+            Novo pedido
+          </EditorialButton>
         </div>
       )}
     </div>

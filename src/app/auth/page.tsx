@@ -1,7 +1,11 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+
+import BrandLogo from "@/components/brand/BrandLogo";
+import EditorialButton from "@/components/ui/EditorialButton";
 import { createClient } from "@/lib/supabase/client";
+import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -12,7 +16,6 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const router = useRouter();
-  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,8 +23,14 @@ export default function AuthPage() {
     setError("");
     setMessage("");
 
+    const supabase = createClient();
+
     if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
       if (error) {
         setError("E-mail ou senha inválidos.");
       } else {
@@ -34,167 +43,159 @@ export default function AuthPage() {
         password,
         options: { data: { full_name: name } },
       });
+
       if (error) {
         setError(error.message);
       } else {
-        setMessage("Conta criada! Verifique seu e-mail ou faça login.");
+        setMessage("Conta criada. Verifique seu e-mail ou faça login.");
         setMode("login");
       }
     }
+
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-beige-light flex">
-      {/* Left panel - decoration */}
-      <div className="hidden lg:flex lg:w-1/2 bg-wine relative overflow-hidden flex-col items-center justify-center p-16">
-        {/* Pattern overlay */}
-        <div className="absolute inset-0 opacity-5"
-          style={{
-            backgroundImage: `repeating-linear-gradient(45deg, #EDE5D8 0, #EDE5D8 1px, transparent 0, transparent 50%)`,
-            backgroundSize: "20px 20px",
-          }}
-        />
-        <div className="relative z-10 text-center">
-          <div className="font-display text-7xl font-light text-beige tracking-[0.3em] mb-2">
-            ÚNICA
+    <main className="min-h-screen bg-paper text-ink">
+      <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative hidden overflow-hidden bg-ink text-paper lg:block">
+          <div className="absolute inset-0 opacity-20">
+            <div className="h-full w-full bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.20),transparent_34%),linear-gradient(120deg,rgba(255,255,255,0.12),transparent_45%)]" />
           </div>
-          <div className="ornament-divider my-6">
-            <span className="font-display text-gold font-light italic text-lg">
-              Cada peça, única como você
-            </span>
+          <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
+            <BrandLogo
+              variant="horizontal"
+              className="h-auto w-72 invert"
+              priority
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="max-w-xl"
+            >
+              <p className="text-[11px] uppercase tracking-[0.38em] text-paper/50">
+                Moda sob medida
+              </p>
+              <h1 className="mt-5 font-display text-7xl font-light leading-[0.9] xl:text-8xl">
+                A medida como assinatura.
+              </h1>
+              <p className="mt-8 max-w-md text-sm leading-7 text-paper/58">
+                Um protótipo de moda sob medida com atmosfera editorial,
+                catálogo curado e pedido acompanhado do primeiro croqui ao
+                acabamento.
+              </p>
+            </motion.div>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-paper/35">
+              Uma extensão da Zara
+            </p>
           </div>
-          <p className="font-body text-beige/60 text-sm tracking-wide max-w-xs leading-relaxed">
-            Roupas criadas exclusivamente para o contorno do seu corpo. Da medida ao acabamento, tudo pensado para você.
-          </p>
-          {/* Decorative circles */}
-          <div className="mt-12 flex justify-center gap-3">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="w-2 h-2 rounded-full border border-gold/40"
-                style={{ animationDelay: `${i * 0.3}s` }}
+        </section>
+
+        <section className="flex items-center justify-center px-6 py-10 sm:px-10">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+            className="w-full max-w-md"
+          >
+            <div className="mb-10 text-center lg:hidden">
+              <BrandLogo
+                variant="horizontal"
+                className="mx-auto h-auto w-72"
+                priority
               />
-            ))}
-          </div>
-        </div>
-      </div>
+            </div>
 
-      {/* Right panel - form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md animate-fade-up">
-          {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-10">
-            <span className="font-display text-4xl font-light tracking-[0.3em] text-wine">
-              Ú<span className="text-gold">N</span>ICA
-            </span>
-          </div>
+            <p className="editorial-kicker">
+              {mode === "login" ? "Acesso reservado" : "Nova cliente"}
+            </p>
+            <h2 className="mt-3 font-display text-5xl font-light leading-none">
+              {mode === "login" ? "Entrar na UNIQUE" : "Criar conta"}
+            </h2>
+            <p className="mt-4 text-sm leading-6 text-ink/55">
+              {mode === "login"
+                ? "Acesse seu catálogo, pedidos e processo de medidas."
+                : "Inicie sua jornada de peça sob medida com a UNIQUE."}
+            </p>
 
-          <h1 className="font-display text-4xl font-light text-gray-800 mb-2">
-            {mode === "login" ? "Bem-vinda de volta" : "Criar conta"}
-          </h1>
-          <p className="font-body text-sm text-gray-500 mb-8">
-            {mode === "login"
-              ? "Entre para acessar seus pedidos exclusivos."
-              : "Inicie sua jornada de moda sob medida."}
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
-              <div>
-                <label className="font-body text-xs tracking-widest uppercase text-gray-500 block mb-1.5">
-                  Nome completo
+            <form onSubmit={handleSubmit} className="mt-9 space-y-4">
+              {mode === "signup" && (
+                <label className="block">
+                  <span className="mb-2 block text-[10px] uppercase tracking-[0.28em] text-ink/45">
+                    Nome completo
+                  </span>
+                  <input
+                    className="input-unique"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
                 </label>
+              )}
+
+              <label className="block">
+                <span className="mb-2 block text-[10px] uppercase tracking-[0.28em] text-ink/45">
+                  E-mail
+                </span>
                 <input
-                  type="text"
-                  className="input-unica"
-                  placeholder="Seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  type="email"
+                  className="input-unique"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
-              </div>
-            )}
-
-            <div>
-              <label className="font-body text-xs tracking-widest uppercase text-gray-500 block mb-1.5">
-                E-mail
               </label>
-              <input
-                type="email"
-                className="input-unica"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
 
-            <div>
-              <label className="font-body text-xs tracking-widest uppercase text-gray-500 block mb-1.5">
-                Senha
-              </label>
-              <input
-                type="password"
-                className="input-unica"
-                placeholder="Mínimo 6 caracteres"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
-
-            {error && (
-              <p className="font-body text-xs text-red-600 bg-red-50 px-3 py-2 rounded">
-                {error}
-              </p>
-            )}
-            {message && (
-              <p className="font-body text-xs text-green-700 bg-green-50 px-3 py-2 rounded">
-                {message}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full mt-6 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="loading-dots">
-                  <span>•</span><span>•</span><span>•</span>
+              <label className="block">
+                <span className="mb-2 block text-[10px] uppercase tracking-[0.28em] text-ink/45">
+                  Senha
                 </span>
-              ) : mode === "login" ? (
-                "Entrar"
-              ) : (
-                "Criar minha conta"
+                <input
+                  type="password"
+                  className="input-unique"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </label>
+
+              {error && (
+                <p className="border border-ink/15 bg-white px-4 py-3 text-xs text-ink">
+                  {error}
+                </p>
               )}
-            </button>
-          </form>
+              {message && (
+                <p className="border border-ink/15 bg-porcelain px-4 py-3 text-xs text-ink">
+                  {message}
+                </p>
+              )}
 
-          {/* Toggle mode */}
-          <div className="mt-8 text-center">
-            <span className="font-body text-xs text-gray-400">
-              {mode === "login" ? "Não tem conta?" : "Já tem conta?"}
-            </span>{" "}
-            <button
-              onClick={() => {
-                setMode(mode === "login" ? "signup" : "login");
-                setError("");
-              }}
-              className="font-body text-xs text-wine hover:text-wine-dark underline underline-offset-4"
-            >
-              {mode === "login" ? "Criar agora" : "Fazer login"}
-            </button>
-          </div>
+              <EditorialButton type="submit" disabled={loading} className="w-full">
+                {loading
+                  ? "Processando"
+                  : mode === "login"
+                    ? "Entrar"
+                    : "Criar conta"}
+              </EditorialButton>
+            </form>
 
-          {/* Ornament */}
-          <div className="mt-10 flex justify-center">
-            <span className="font-display italic text-gold/50 text-sm">✦</span>
-          </div>
-        </div>
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => {
+                  setMode(mode === "login" ? "signup" : "login");
+                  setError("");
+                  setMessage("");
+                }}
+                className="text-[11px] uppercase tracking-[0.24em] text-ink/55 underline underline-offset-8 transition hover:text-ink"
+              >
+                {mode === "login" ? "Criar acesso" : "Já tenho acesso"}
+              </button>
+            </div>
+          </motion.div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

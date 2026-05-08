@@ -1,7 +1,9 @@
-import { notFound } from "next/navigation";
+import EditorialButton from "@/components/ui/EditorialButton";
+import ProductCard from "@/components/ui/ProductCard";
+import { getProductById, getProducts } from "@/lib/data/products";
 import Image from "next/image";
 import Link from "next/link";
-import { mockProducts } from "@/lib/products";
+import { notFound } from "next/navigation";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -9,130 +11,86 @@ interface Props {
 
 export default async function ProductPage({ params }: Props) {
   const { id } = await params;
-  const product = mockProducts.find((p) => p.id === id);
+  const [product, products] = await Promise.all([getProductById(id), getProducts()]);
+
   if (!product) notFound();
 
-  const related = mockProducts.filter((p) => p.id !== id).slice(0, 3);
+  const related = products.filter((p) => p.id !== product.id).slice(0, 3);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-      {/* Breadcrumb */}
-      <nav className="font-body text-xs tracking-widest uppercase text-gray-400 mb-8 flex items-center gap-2">
-        <Link href="/catalog" className="hover:text-wine transition-colors">
+    <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+      <nav className="mb-8 flex items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-ink/42">
+        <Link href="/catalog" className="transition hover:text-ink">
           Catálogo
         </Link>
         <span>/</span>
-        <span className="text-wine">{product.name}</span>
+        <span className="text-ink">{product.name}</span>
       </nav>
 
-      <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
-        {/* Image */}
-        <div className="animate-fade-up">
-          <div className="relative aspect-[3/4] overflow-hidden bg-white">
+      <section className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        <div className="cinema-in relative aspect-[4/5] overflow-hidden bg-porcelain">
+          {product.image_url && (
             <Image
               src={product.image_url}
               alt={product.name}
               fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 50vw"
               priority
+              className="object-cover grayscale"
+              sizes="(max-width: 1024px) 100vw, 55vw"
             />
-            <div className="absolute top-4 left-4">
-              <span className="bg-beige-light/90 font-body text-[10px] tracking-widest uppercase px-3 py-1.5 text-wine">
-                {product.category}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Info */}
-        <div className="animate-fade-up stagger-2 flex flex-col justify-center">
-          <p className="font-body text-xs tracking-[0.3em] uppercase text-gold mb-3">
-            Sob Medida
-          </p>
-          <h1 className="font-display text-5xl font-light text-gray-800 leading-tight">
+        <div className="cinema-in delay-2 flex flex-col justify-center">
+          <p className="editorial-kicker">{product.category ?? "Sob medida"}</p>
+          <h1 className="mt-5 font-display text-6xl font-light leading-[0.92] sm:text-7xl">
             {product.name}
           </h1>
-
-          <div className="ornament-divider my-5">
-            <span className="font-display italic text-gray-400 text-sm">✦</span>
-          </div>
-
-          <p className="font-body text-sm text-gray-500 leading-relaxed mb-6">
+          <div className="editorial-rule my-8" />
+          <p className="max-w-xl text-base leading-8 text-ink/60">
             {product.description}
           </p>
 
-          {/* Details */}
-          <div className="space-y-2 mb-8">
+          <dl className="mt-9 grid gap-4 border-y border-ink/10 py-6 text-sm">
             {[
-              { label: "Tecido", value: "Selecionado a partir das suas medidas" },
-              { label: "Prazo", value: "15 a 21 dias úteis após aprovação" },
-              { label: "Ajustes", value: "Incluídos no pedido" },
-            ].map((d) => (
-              <div key={d.label} className="flex gap-2 font-body text-xs text-gray-500">
-                <span className="text-wine font-medium w-16 shrink-0">{d.label}</span>
-                <span>{d.value}</span>
+              ["Tecido", "Selecionado a partir das suas medidas"],
+              ["Prazo", "15 a 21 dias úteis após aprovação"],
+              ["Ajustes", "Incluídos no pedido"],
+            ].map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[7rem_1fr] gap-4">
+                <dt className="text-[10px] uppercase tracking-[0.28em] text-ink/42">
+                  {label}
+                </dt>
+                <dd className="text-ink/65">{value}</dd>
               </div>
             ))}
+          </dl>
+
+          <div className="mt-8 flex items-end justify-between gap-6">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.28em] text-ink/42">
+                Investimento
+              </p>
+              <p className="mt-1 font-display text-5xl">
+                R$ {Number(product.price).toLocaleString("pt-BR")}
+              </p>
+            </div>
+            <EditorialButton href={`/scan?product=${product.id}`}>
+              Escolher look
+            </EditorialButton>
           </div>
-
-          {/* Price */}
-          <div className="bg-beige p-5 mb-8">
-            <p className="font-body text-xs tracking-widest uppercase text-gray-400 mb-1">
-              Investimento
-            </p>
-            <p className="font-display text-4xl text-wine font-medium">
-              R$ {product.price.toLocaleString("pt-BR")}
-            </p>
-            <p className="font-body text-xs text-gray-400 mt-1">
-              ou 3x sem juros
-            </p>
-          </div>
-
-          {/* CTA */}
-          <Link
-            href={`/scan?product=${product.id}`}
-            className="btn-primary text-center block"
-          >
-            Escolher este look
-          </Link>
-
-          <p className="font-body text-[11px] text-gray-400 text-center mt-4 leading-relaxed">
-            Após escolher, você preencherá suas medidas e enviará fotos para análise.
-          </p>
         </div>
-      </div>
+      </section>
 
-      {/* Related */}
       {related.length > 0 && (
-        <div className="mt-20">
-          <div className="text-center mb-8">
-            <h2 className="font-display text-3xl font-light text-gray-700">
-              Você também pode gostar
-            </h2>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {related.map((p) => (
-              <Link key={p.id} href={`/product/${p.id}`} className="group block">
-                <div className="relative aspect-[3/4] overflow-hidden bg-white mb-2">
-                  <Image
-                    src={p.image_url}
-                    alt={p.name}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="33vw"
-                  />
-                </div>
-                <p className="font-display text-lg font-light text-gray-700 group-hover:text-wine transition-colors">
-                  {p.name}
-                </p>
-                <p className="font-body text-sm text-gray-400">
-                  R$ {p.price.toLocaleString("pt-BR")}
-                </p>
-              </Link>
+        <section className="mt-20 border-t border-ink/10 pt-10">
+          <p className="editorial-kicker">Também na coleção</p>
+          <div className="mt-8 grid grid-cols-3 gap-4 md:gap-6">
+            {related.map((item, index) => (
+              <ProductCard key={item.id} product={item} index={index} />
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
